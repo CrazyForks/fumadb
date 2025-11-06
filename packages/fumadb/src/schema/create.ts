@@ -239,7 +239,7 @@ type DefaultFunction<Type extends keyof TypeMap> =
   | (Type extends keyof DefaultFunctionMap ? DefaultFunctionMap[Type] : never)
   | (() => TypeMap[Type]);
 
-type IdColumnType = `varchar(${number})`;
+type IdColumnType = `varchar(${number})` | "uuid";
 
 export type TypeMap = {
   string: string;
@@ -254,6 +254,7 @@ export type TypeMap = {
   binary: Uint8Array;
   date: Date;
   timestamp: Date;
+  uuid: string;
 } & Record<`varchar(${number})`, string>;
 
 export class Column<Type extends keyof TypeMap, In = unknown, Out = unknown> {

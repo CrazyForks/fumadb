@@ -1,4 +1,4 @@
-import { type AnySchema, type AnyColumn, IdColumn } from "../schema/create";
+import { type AnyColumn, type AnySchema, IdColumn } from "../schema/create";
 
 export interface ConvexConfig {
   type: "convex";
@@ -17,6 +17,7 @@ function mapColumnToValidator(column: AnyColumn, tableName: string): string {
     validator = "v.string()";
   } else {
     switch (column.type) {
+      case "uuid":
       case "string":
         validator = "v.string()";
         break;

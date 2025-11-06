@@ -4,23 +4,23 @@ import {
   sql,
   type TableMetadata,
 } from "kysely";
-import type { SQLProvider } from "../../../shared/providers";
-import { dbToSchemaType } from "../../../schema/serialize";
+import type { ForeignKeyInfo } from "../../../migration-engine/shared";
 import {
+  type AnyColumn,
+  type AnySchema,
+  type AnyTable,
   column,
   idColumn,
-  table,
-  schema,
-  type AnySchema,
-  type AnyColumn,
-  type AnyTable,
   type RelationBuilder,
-  type TypeMap,
   type RelationsMap,
+  schema,
+  type TypeMap,
+  table,
 } from "../../../schema/create";
-import { CockroachIntrospector } from "./cockroach-inspector";
-import type { ForeignKeyInfo } from "../../../migration-engine/shared";
 import type { NameVariantsConfig } from "../../../schema/name-variants-builder";
+import { dbToSchemaType } from "../../../schema/serialize";
+import type { SQLProvider } from "../../../shared/providers";
+import { CockroachIntrospector } from "./cockroach-inspector";
 
 export interface AdditionalColumnMetadata {
   length?: number;
@@ -181,12 +181,16 @@ export async function introspectSchema(
 
     let col: AnyColumn;
     if (isPrimaryKey) {
-      if (!columnType.startsWith("varchar"))
+      if (!columnType.startsWith("varchar") && columnType !== "uuid")
         throw new Error(
-          `ID column only supports varchar at the moment, found ${columnType}.`
+          `ID column only supports varchar and uuid at the moment, found ${columnType}.`
         );
 
-      col = idColumn(dbColumn.name, columnType as `varchar(${number})`);
+      if (columnType === "uuid") {
+        col = idColumn(dbColumn.name, "uuid");
+      } else {
+        col = idColumn(dbColumn.name, columnType as `varchar(${number})`);
+      }
     } else {
       col = column(dbColumn.name, columnType).nullable(dbColumn.isNullable);
     }

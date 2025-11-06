@@ -1,4 +1,4 @@
-import { AdditionalColumnMetadata } from "../adapters/kysely/migration/introspect";
+import type { AdditionalColumnMetadata } from "../adapters/kysely/migration/introspect";
 import type { SQLProvider } from "../shared/providers";
 import type { AnyColumn } from "./create";
 
@@ -29,6 +29,8 @@ export function dbToSchemaType(
 
   if (provider === "postgresql" || provider === "cockroachdb") {
     switch (dbType) {
+      case "uuid":
+        return ["uuid"];
       case "decimal":
       case "real":
       case "numeric":
@@ -37,9 +39,10 @@ export function dbToSchemaType(
       case "timestamp":
       case "timestamptz":
         return ["timestamp"];
-      case "varchar":
+      case "varchar": {
         const len = additional.length;
         if (len != null) return [`varchar(${len})`];
+      }
       case "text":
         return ["string"];
       case "boolean":
@@ -67,9 +70,10 @@ export function dbToSchemaType(
         return ["decimal"];
       case "datetime":
         return ["timestamp"];
-      case "varchar":
+      case "varchar": {
         const len = additional.length;
         if (len != null) return [`varchar(${len})`];
+      }
       case "text":
         return ["string"];
       case "longblob":
@@ -84,6 +88,8 @@ export function dbToSchemaType(
 
   if (provider === "mssql") {
     switch (dbType) {
+      case "uniqueidentifier":
+        return ["uuid"];
       case "int":
         return ["integer"];
       case "decimal":
@@ -97,9 +103,10 @@ export function dbToSchemaType(
       case "datetime2":
         return ["timestamp"];
       case "nvarchar":
-      case "varchar":
+      case "varchar": {
         const len = additional.length;
         if (len != null) return [`varchar(${len})`];
+      }
       case "ntext":
       case "text":
       case "varchar(max)":
@@ -124,6 +131,8 @@ export function schemaToDBType(
 
   if (provider === "sqlite") {
     switch (type) {
+      case "uuid":
+        return "text";
       case "integer":
       case "timestamp":
       case "date":
@@ -145,6 +154,8 @@ export function schemaToDBType(
 
   if (provider === "mssql") {
     switch (type) {
+      case "uuid":
+        return "uniqueidentifier";
       case "bool":
         return "bit";
       case "timestamp":
@@ -166,6 +177,8 @@ export function schemaToDBType(
 
   if (provider === "postgresql" || provider === "cockroachdb") {
     switch (type) {
+      case "uuid":
+        return "uuid";
       case "bool":
         return "boolean";
       case "json":
@@ -182,6 +195,8 @@ export function schemaToDBType(
 
   if (provider === "mysql") {
     switch (type) {
+      case "uuid":
+        return "char(36)";
       case "bool":
         return "boolean";
       case "string":

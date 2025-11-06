@@ -1,11 +1,11 @@
-import type { Provider } from "../../shared/providers";
-import { parseVarchar } from "../../utils/parse";
 import {
   type AnySchema,
   type AnyTable,
   type ForeignKeyAction,
   IdColumn,
 } from "../../schema/create";
+import type { Provider } from "../../shared/providers";
+import { parseVarchar } from "../../utils/parse";
 
 const foreignKeyActionMap: Record<ForeignKeyAction, string> = {
   "SET NULL": "SetNull",
@@ -29,6 +29,19 @@ export function generateSchema(schema: AnySchema, provider: Provider): string {
       map(provider === "mongodb" ? column.names.mongodb : column.names.sql);
 
       switch (column.type) {
+        case "uuid":
+          type = "String";
+          switch (provider) {
+            case "postgresql":
+            case "cockroachdb":
+              attributes.push("@db.Uuid");
+              break;
+            case "mssql":
+              attributes.push("@db.UniqueIdentifier");
+              break;
+            // MySQL, SQLite, MongoDB use String without db attribute
+          }
+          break;
         case "integer":
           type = "Int";
           break;

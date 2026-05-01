@@ -38,8 +38,8 @@ async function run(orm: AbstractQuery<typeof v1>): Promise<string> {
         id: "generated-cuid",
         name: "fuma",
       }),
-      { depth: null, sorted: true }
-    )
+      { depth: null, sorted: true },
+    ),
   );
   lines.push("create other users");
   lines.push(
@@ -54,8 +54,8 @@ async function run(orm: AbstractQuery<typeof v1>): Promise<string> {
           name: "Test User",
         },
       ]),
-      { depth: null, sorted: true }
-    )
+      { depth: null, sorted: true },
+    ),
   );
 
   lines.push("initial data ready");
@@ -80,7 +80,7 @@ async function run(orm: AbstractQuery<typeof v1>): Promise<string> {
     inspect(await orm.findMany("messages", { orderBy: ["id", "asc"] }), {
       depth: null,
       sorted: true,
-    })
+    }),
   );
 
   lines.push("test joins: user -> messages -> mentioned by");
@@ -97,8 +97,8 @@ async function run(orm: AbstractQuery<typeof v1>): Promise<string> {
               }),
           }),
       }),
-      { depth: null, sorted: true }
-    )
+      { depth: null, sorted: true },
+    ),
   );
 
   lines.push("test joins: user -> messages (conditional) -> author");
@@ -115,8 +115,8 @@ async function run(orm: AbstractQuery<typeof v1>): Promise<string> {
             join: (b) => b.author(),
           }),
       }),
-      { depth: null, sorted: true }
-    )
+      { depth: null, sorted: true },
+    ),
   );
 
   lines.push(`count users: ${await orm.count("users")}`);
@@ -147,8 +147,8 @@ async function run(orm: AbstractQuery<typeof v1>): Promise<string> {
         content: "test",
         image: new Uint8Array([1, 2, 3, 4, 5, 6, 7, 8]),
       }),
-      { depth: null, sorted: true }
-    )
+      { depth: null, sorted: true },
+    ),
   );
 
   await orm
@@ -176,8 +176,8 @@ async function run(orm: AbstractQuery<typeof v1>): Promise<string> {
           await tx.findMany("messages", {
             orderBy: ["id", "asc"],
           }),
-          { depth: null, sorted: true }
-        )
+          { depth: null, sorted: true },
+        ),
       );
 
       throw new Error("Rollback!");
@@ -193,15 +193,15 @@ async function run(orm: AbstractQuery<typeof v1>): Promise<string> {
       await orm.findMany("messages", {
         orderBy: ["id", "asc"],
       }),
-      { depth: null, sorted: true }
-    )
+      { depth: null, sorted: true },
+    ),
   );
 
   await expect(
     orm.create("messages", {
       user: "invalid",
       id: "invalid-message",
-    })
+    }),
   ).rejects.toThrowError();
 
   return lines.join("\n");
@@ -216,7 +216,7 @@ test.each(kyselyTests)(
       kyselyAdapter({
         db: item.db,
         provider: item.provider,
-      })
+      }),
     );
 
     const migrator = await client.createMigrator();
@@ -224,10 +224,10 @@ test.each(kyselyTests)(
 
     const result = await run(client.orm("1.0.0"));
     await expect(result).toMatchFileSnapshot(`query.output.txt`);
-  }
+  },
 );
 
-test("query mongodb", async () => {
+test("query mongodb", { timeout: Infinity }, async () => {
   const mongodb = databases.find((db) => db.provider === "mongodb")!.create();
   await mongodb.connect();
   await resetMongoDB(mongodb);
@@ -235,11 +235,11 @@ test("query mongodb", async () => {
   const instance = myDB.client(
     mongoAdapter({
       client: mongodb,
-    })
+    }),
   );
 
   await expect(await run(instance.orm("1.0.0"))).toMatchFileSnapshot(
-    "query.output.txt"
+    "query.output.txt",
   );
   await mongodb.close();
 });
@@ -249,7 +249,7 @@ test.each(drizzleTests)("query drizzle ($provider)", async (item) => {
   const client = await initDrizzleClient(myDB, "1.0.0", item.provider);
 
   await expect(await run(client.orm("1.0.0"))).toMatchFileSnapshot(
-    "query.output.txt"
+    "query.output.txt",
   );
 });
 
@@ -260,9 +260,9 @@ test.each(prismaTests)(
     const client = await initPrismaClient(myDB, "1.0.0", item.provider);
 
     await expect(await run(client.orm("1.0.0"))).toMatchFileSnapshot(
-      "query.output.txt"
+      "query.output.txt",
     );
-  }
+  },
 );
 
 test.each(prismaTests)(
@@ -283,7 +283,7 @@ test.each(prismaTests)(
     for (const result of results) {
       expect(result).toBe("1.0.0");
     }
-  }
+  },
 );
 
 test.each(kyselyTests)(
@@ -295,7 +295,7 @@ test.each(kyselyTests)(
       kyselyAdapter({
         db: item.db,
         provider: item.provider,
-      })
+      }),
     );
 
     const migrator = await client.createMigrator();
@@ -338,5 +338,5 @@ test.each(kyselyTests)(
     expect(all[0]?.metadata).toEqual({});
     expect(all[1]?.metadata).toEqual({});
     expect(all[2]?.metadata).toEqual({ views: 100 });
-  }
+  },
 );

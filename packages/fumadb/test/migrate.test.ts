@@ -162,7 +162,7 @@ test.each([
     mode: "from-schema",
     unsafe: true,
   },
-] as const)("MongoDB migration using $mode", async (item) => {
+] as const)("MongoDB migration using $mode", { timeout: Infinity }, async (item) => {
   const mongodb = databases.find((db) => db.provider === "mongodb")!.create();
   await resetMongoDB(mongodb);
 

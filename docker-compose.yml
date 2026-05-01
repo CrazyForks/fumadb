@@ -6,6 +6,24 @@ services:
       - "27017:27017"
     volumes:
       - mongo-data:/data/db
+    healthcheck:
+      test: >
+        mongosh --quiet --eval '
+          const config = {_id: "rs0", members: [{_id: 0, host: "localhost:27017"}]};
+          try {
+            if (rs.status().myState === 1) quit(0);
+          } catch (e) {
+            if (e.codeName === "NotYetInitialized") {
+              rs.initiate(config);
+            } else if (e.codeName === "InvalidReplicaSetConfig" || e.message.includes("not a member")) {
+              rs.reconfig(config, {force: true});
+            }
+          }
+          quit(1);
+        '
+      interval: 2s
+      timeout: 5s
+      retries: 30
   postgresql:
     image: postgres:latest
     environment:

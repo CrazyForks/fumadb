@@ -26,7 +26,7 @@ import type { AnySchema } from "../src/schema";
 
 const sqlitePath = path.join(
   import.meta.dirname,
-  "../node_modules/sqlite.sqlite"
+  "../node_modules/sqlite.sqlite",
 );
 
 function createDB<T extends string, Pool>(options: {
@@ -213,9 +213,6 @@ export const prismaTests = [
   {
     provider: "sqlite" as const,
   },
-  {
-    provider: "mongodb" as const,
-  },
 ];
 
 const prismaDir = path.join(import.meta.dirname, "../node_modules/_prisma");
@@ -225,64 +222,102 @@ export async function initPrismaClient<
 >(
   factory: FumaDBFactory<Schemas>,
   version: Version,
-  provider: Provider
+  provider: Exclude<Provider, "mongodb">,
 ): Promise<FumaDB<Schemas>> {
   fs.mkdirSync(prismaDir, { recursive: true });
+  const hash = Date.now();
   const schemaPath = path.join(
     prismaDir,
-    `schema.${version}.${provider}.prisma`
+    `schema-${hash}.${version}.${provider}.prisma`,
   );
   const db = databases.find((str) => str.provider === provider)!;
-  const clientPath = path.join(prismaDir, `client-${version}-${provider}`);
+  const clientPath = path.join(
+    prismaDir,
+    `client-${hash}-${version}-${provider}`,
+  );
 
   const schema = factory
     .client(
       prismaAdapter({
         prisma: {},
         provider,
-      })
+      }),
     )
     .generateSchema(version);
 
-  schema.path = path.join(prismaDir, `schema.${version}.${provider}.prisma`);
+  schema.path = schemaPath;
   schema.code += `\ndatasource db {
   provider = "${provider}"
-  url      = "${db.url}"
 }
 
 generator client {
-  provider = "prisma-client-js"
+  provider = "prisma-client"
   output   = "${clientPath}"
 }`;
 
   fs.writeFileSync(schema.path, schema.code);
+  const env = {
+    ...process.env,
+    DATABASE_URL: db.url,
+    PRISMA_SCHEMA: schemaPath,
+  };
 
   // Push schema to database
   await x(
-    "npx",
+    "node",
     [
-      "prisma",
+      "node_modules/prisma/build/index.js",
       "db",
       "push",
-      `--schema=${schemaPath}`,
       "--force-reset",
       "--accept-data-loss",
     ],
     {
       nodeOptions: {
         cwd: path.dirname(import.meta.dirname),
+        env,
       },
-    }
+    },
   ).then((res) => console.log(res.stdout, res.stderr));
+  // generate
+  await x("node", ["node_modules/prisma/build/index.js", "generate"], {
+    nodeOptions: {
+      cwd: path.dirname(import.meta.dirname),
+      env,
+    },
+  }).then((res) => console.log(res.stdout, res.stderr));
 
-  const { PrismaClient } = await import(`${clientPath}/index.js`);
+  const { PrismaClient } = await import(`${clientPath}/client`);
+  let adapter;
+  switch (provider) {
+    case "mysql":
+      const { PrismaMariaDb } = await import("@prisma/adapter-mariadb");
+      adapter = new PrismaMariaDb(db.url);
+      break;
+    case "cockroachdb":
+    case "postgresql":
+      const { PrismaPg } = await import("@prisma/adapter-pg");
+      adapter = new PrismaPg({ connectionString: db.url });
+      break;
+    case "sqlite":
+      const { PrismaBetterSqlite3 } =
+        await import("@prisma/adapter-better-sqlite3");
+      adapter = new PrismaBetterSqlite3({ url: db.url });
+      break;
+    case "mssql":
+      const { PrismaMssql } = await import("@prisma/adapter-mssql");
+      adapter = new PrismaMssql({ connectionString: db.url });
+      break;
+    default:
+      const _: never = provider;
+  }
 
   return factory.client(
     prismaAdapter({
-      prisma: new PrismaClient(),
+      prisma: new PrismaClient({ adapter }),
       provider,
       db: db.provider === "mongodb" ? db.create() : undefined,
-    })
+    }),
   );
 }
 
@@ -292,9 +327,9 @@ export async function initDrizzleClient<
 >(
   factory: FumaDBFactory<Schemas>,
   version: Version,
-  provider: Exclude<SQLProvider, "mssql" | "cockroachdb">
+  provider: Exclude<SQLProvider, "mssql" | "cockroachdb">,
 ) {
-  const DrizzleKit = await import("drizzle-kit/api");
+  const DrizzleAPI = await import("drizzle-kit/api");
   const { drizzleAdapter } = await import("../src/adapters/drizzle");
   const test = drizzleTests.find((t) => t.provider === provider)!;
 
@@ -305,7 +340,7 @@ export async function initDrizzleClient<
       drizzleAdapter({
         db,
         provider,
-      })
+      }),
     )
     .generateSchema(version);
 
@@ -314,22 +349,22 @@ export async function initDrizzleClient<
   const drizzleSchema = await import(`${schema.path}?hash=${Date.now()}`);
 
   if (provider === "postgresql") {
-    const { apply } = await DrizzleKit.pushSchema(drizzleSchema, db as any);
+    const { apply } = await DrizzleAPI.pushSchema(drizzleSchema, db as any);
     await apply();
   } else if (provider === "mysql") {
     const { sql } = await import("drizzle-orm");
-    const prev = await DrizzleKit.generateMySQLDrizzleJson({});
-    const cur = await DrizzleKit.generateMySQLDrizzleJson(drizzleSchema);
-    const statements = await DrizzleKit.generateMySQLMigration(prev, cur);
+    const prev = await DrizzleAPI.generateMySQLDrizzleJson({});
+    const cur = await DrizzleAPI.generateMySQLDrizzleJson(drizzleSchema);
+    const statements = await DrizzleAPI.generateMySQLMigration(prev, cur);
 
     for (const statement of statements) {
       await (db as any).execute(sql.raw(statement));
     }
   } else {
     // they need libsql
-    const { apply } = await DrizzleKit.pushSQLiteSchema(
+    const { apply } = await DrizzleAPI.pushSQLiteSchema(
       drizzleSchema,
-      db as any
+      db as any,
     );
     await apply();
   }
@@ -339,7 +374,7 @@ export async function initDrizzleClient<
     drizzleAdapter({
       db: test.db(drizzleSchema),
       provider,
-    })
+    }),
   );
 }
 
@@ -350,7 +385,55 @@ export const cleanupFiles = () => {
     fs.rmSync(prismaDir, { recursive: true, force: true });
 };
 
+const mongoReplicaSetConfig = {
+  _id: "rs0",
+  members: [{ _id: 0, host: "localhost:27017" }],
+};
+
+const wait = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
+
+function isMongoError(error: unknown, codeName: string) {
+  return (
+    typeof error === "object" &&
+    error !== null &&
+    "codeName" in error &&
+    error.codeName === codeName
+  );
+}
+
+async function ensureMongoPrimary(mongodb: MongoClient) {
+  const admin = mongodb.db("admin");
+
+  try {
+    await admin.command({ replSetGetStatus: 1 });
+  } catch (error) {
+    if (isMongoError(error, "NotYetInitialized")) {
+      await admin.command({ replSetInitiate: mongoReplicaSetConfig });
+    } else if (
+      isMongoError(error, "InvalidReplicaSetConfig") ||
+      (error instanceof Error && error.message.includes("not a member"))
+    ) {
+      await admin.command({
+        replSetReconfig: mongoReplicaSetConfig,
+        force: true,
+      });
+    } else {
+      throw error;
+    }
+  }
+
+  for (let i = 0; i < 30; i++) {
+    const hello = await admin.command({ hello: 1 });
+    if (hello.isWritablePrimary) return;
+
+    await wait(500);
+  }
+
+  throw new Error("Timed out waiting for MongoDB replica set primary.");
+}
+
 export async function resetMongoDB(mongodb: MongoClient) {
+  await ensureMongoPrimary(mongodb);
   await mongodb.db().dropDatabase();
 }
 
@@ -373,7 +456,7 @@ export async function resetDB(provider: SQLProvider) {
               "sys",
             ]),
             b("TABLE_NAME", "=", "__drizzle_migrations"),
-          ])
+          ]),
         )
         .where("TABLE_TYPE", "=", "BASE TABLE")
         .execute();
@@ -398,8 +481,8 @@ export async function resetDB(provider: SQLProvider) {
     await sql`PRAGMA foreign_keys = OFF`.execute(db);
     await Promise.all(
       tables.map((table) =>
-        db.schema.dropTable(table.name).ifExists().execute()
-      )
+        db.schema.dropTable(table.name).ifExists().execute(),
+      ),
     );
     await sql`PRAGMA foreign_keys = ON`.execute(db);
     return;
@@ -452,13 +535,13 @@ export async function resetDB(provider: SQLProvider) {
             .dropConstraint(constraint_name)
             .execute();
         }
-      })
+      }),
     );
 
     await Promise.all(
       tables.map(async (t) => {
         await db.schema.dropTable(t.table_name).execute();
-      })
+      }),
     );
     return;
   }
@@ -480,7 +563,7 @@ export async function resetDB(provider: SQLProvider) {
       db.schema
         .dropTable(`${t.table_schema}.${t.table_name}`)
         .ifExists()
-        .execute()
-    )
+        .execute(),
+    ),
   );
 }

@@ -24,7 +24,7 @@ function buildWhere(condition: Condition): object {
 
     if (value instanceof Column) {
       throw new Error(
-        "Prisma adapter does not support comparing against another column at the moment."
+        "Prisma adapter does not support comparing against another column at the moment.",
       );
     }
 
@@ -117,7 +117,7 @@ function mapResult(result: Record<string, unknown>, table: AnyTable) {
       const relation = table.relations[k];
       if (relation.type === "many") {
         out[k] = (value as Record<string, unknown>[]).map((v) =>
-          mapResult(v, relation.table)
+          mapResult(v, relation.table),
         );
       } else {
         out[k] = value ? mapResult(value as any, relation.table) : null;
@@ -137,7 +137,7 @@ export function fromPrisma(
   schema: AnySchema,
   config: PrismaConfig & {
     isTransaction?: boolean;
-  }
+  },
 ): AbstractQuery<AnySchema> {
   const {
     provider,
@@ -172,11 +172,32 @@ export function fromPrisma(
     await Promise.all(Object.values(schema.tables).map(initCollection));
   }
 
+  let mapped: Map<string, string> | undefined;
+
+  function getPrismaModel(table: AnyTable) {
+    if (!mapped) {
+      mapped = new Map();
+      for (const key in prisma) {
+        mapped.set(key.toLowerCase(), key);
+      }
+    }
+
+    const modelName = mapped.get(table.names.prisma.toLowerCase());
+
+    if (!modelName) {
+      throw new Error(
+        `Prisma client is missing model delegate "${table.names.prisma}" for table "${table.ormName}".`,
+      );
+    }
+
+    return prisma[modelName]!;
+  }
+
   const init = initMongoDB();
 
   function createFindOptions(
     table: AnyTable,
-    v: SimplifyFindOptions<FindManyOptions>
+    v: SimplifyFindOptions<FindManyOptions>,
   ) {
     const where = v.where ? buildWhere(v.where) : undefined;
     const select: Record<string, unknown> = mapSelect(v.select, table);
@@ -201,7 +222,7 @@ export function fromPrisma(
   function mapValues(
     table: AnyTable,
     values: Record<string, unknown>,
-    generateDefault = false
+    generateDefault = false,
   ) {
     const out: Record<string, unknown> = {};
 
@@ -220,9 +241,10 @@ export function fromPrisma(
     tables: schema.tables,
     async count(table, v) {
       await init;
+      const model = getPrismaModel(table);
 
       return (
-        await prisma[table.names.prisma].count({
+        await model.count({
           select: {
             _all: true,
           },
@@ -232,10 +254,11 @@ export function fromPrisma(
     },
     async findFirst(table, v) {
       await init;
+      const model = getPrismaModel(table);
       const options = createFindOptions(table, v);
       delete options.take;
 
-      const result = await prisma[table.names.prisma].findFirst({
+      const result = await model.findFirst({
         ...options,
         where: options.where!,
       });
@@ -245,33 +268,36 @@ export function fromPrisma(
     },
     async findMany(table, v) {
       await init;
+      const model = getPrismaModel(table);
 
-      return (
-        await prisma[table.names.prisma].findMany(createFindOptions(table, v))
-      ).map((v) => mapResult(v, table));
+      return (await model.findMany(createFindOptions(table, v))).map((v) =>
+        mapResult(v, table),
+      );
     },
     async updateMany(table, v) {
       await init;
+      const model = getPrismaModel(table);
       const where = v.where ? buildWhere(v.where) : undefined;
 
-      await prisma[table.names.prisma].updateMany({ where, data: v.set });
+      await model.updateMany({ where, data: v.set });
     },
     async create(table, values) {
       await init;
       if (relationMode === "prisma") {
         await Promise.all(
           table.foreignKeys.map((key) =>
-            checkForeignKeyOnInsert(this, key, [values])
-          )
+            checkForeignKeyOnInsert(this, key, [values]),
+          ),
         );
       }
 
       values = mapValues(table, values, true);
+      const model = getPrismaModel(table);
       return mapResult(
-        await prisma[table.names.prisma].create({
+        await model.create({
           data: values,
         }),
-        table
+        table,
       );
     },
     async createMany(table, values) {
@@ -280,25 +306,26 @@ export function fromPrisma(
       if (relationMode === "prisma") {
         await Promise.all(
           table.foreignKeys.map((key) =>
-            checkForeignKeyOnInsert(this, key, values)
-          )
+            checkForeignKeyOnInsert(this, key, values),
+          ),
         );
       }
 
       values = values.map((value) => mapValues(table, value, true));
-      await prisma[table.names.prisma].createMany({ data: values });
+      await getPrismaModel(table).createMany({ data: values });
       return values.map((value) => ({ _id: value[idField] }));
     },
     async deleteMany(table, v) {
       await init;
+      const model = getPrismaModel(table);
       const where = v.where ? buildWhere(v.where) : undefined;
 
-      await prisma[table.names.prisma].deleteMany({ where });
+      await model.deleteMany({ where });
     },
     async upsert(table, { where, ...v }) {
       await init;
 
-      await prisma[table.names.prisma].upsert({
+      await getPrismaModel(table).upsert({
         where: where ? buildWhere(where) : {},
         create: mapValues(table, v.create, true),
         update: mapValues(table, v.update),
@@ -313,8 +340,8 @@ export function fromPrisma(
             ...config,
             isTransaction: true,
             prisma: tx,
-          })
-        )
+          }),
+        ),
       );
     },
   });

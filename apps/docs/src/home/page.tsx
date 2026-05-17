@@ -20,22 +20,10 @@ import {
 } from "lucide-react";
 import { ServerCodeBlock } from "fumadocs-ui/components/codeblock.rsc";
 import BannerImage from "./image.png";
-import { HomeLayout } from "fumadocs-ui/layouts/home";
 
-export default function Page() {
+export function IndexPage() {
   return (
-    <HomeLayout
-      nav={{
-        title: "FumaDB",
-      }}
-      links={[
-        {
-          text: "Documentation",
-          url: "/docs",
-          active: "nested-url",
-        },
-      ]}
-    >
+    <>
       <title>FumaDB</title>
       <meta
         property="description"
@@ -47,7 +35,7 @@ export default function Page() {
         <CodeSamples />
         <CTA />
       </main>
-    </HomeLayout>
+    </>
   );
 }
 

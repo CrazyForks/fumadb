@@ -8,3 +8,6 @@ allowBuilds:
   esbuild: false
   prisma: true
   sharp: false
+minimumReleaseAgeExclude:
+  - fumapress
+  - "@fumapress/*"

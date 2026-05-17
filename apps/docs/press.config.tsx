@@ -6,13 +6,20 @@ import { takumiPlugin } from "fumapress/plugins/takumi";
 import { loader } from "fumadocs-core/source";
 import { docs } from "./.source/server";
 import { lucideIconsPlugin } from "fumadocs-core/source/plugins/lucide-icons";
-import { createDocsLayout } from "fumapress/layouts/docs";
+import { createDocsLayoutPage } from "fumapress/layouts/docs";
+import { createHomeLayout } from "fumapress/layouts/home";
+import { IndexPage } from "@/home/page";
 
 export default defineConfig({
-  loader: loader(docs.toFumadocsSource(), {
-    baseUrl: "/",
-    plugins: [lucideIconsPlugin()],
-  }),
+  loader: loader(
+    docs.toFumadocsSource({
+      baseDir: "docs",
+    }),
+    {
+      baseUrl: "/",
+      plugins: [lucideIconsPlugin()],
+    },
+  ),
   site: {
     name: "FumaDB",
     baseUrl: "https://fumadb.vercel.app",
@@ -41,14 +48,41 @@ export default defineConfig({
     },
   },
 })
-  .usePlugins(flexsearchPlugin(), llmsPlugin(), takumiPlugin())
+  .usePlugins(flexsearchPlugin(), llmsPlugin(), takumiPlugin(), {
+    createPages({ createPage }) {
+      const HomeLayout = createHomeLayout<(typeof this)["$context"]>({
+        render: () => ({
+          layoutProps: {
+            links: [
+              {
+                text: "Documentation",
+                url: "/docs",
+                active: "nested-url",
+              },
+            ],
+          },
+        }),
+      });
+
+      createPage({
+        path: "/",
+        render: "static",
+        component: () => {
+          return (
+            <HomeLayout ctx={this}>
+              <IndexPage />
+            </HomeLayout>
+          );
+        },
+      });
+    },
+  })
   .useAdapters(fumadocsMdx())
   .useLayouts({
-    page: createDocsLayout({
-      async render(page) {
+    page: createDocsLayoutPage({
+      render() {
         return {
           pageProps: {
-            toc: (await page.data.load()).toc,
             tableOfContent: { style: "clerk" },
           },
         };

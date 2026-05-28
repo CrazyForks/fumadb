@@ -37,7 +37,7 @@
     "@prisma/adapter-pg": "^7.8.0",
     "@prisma/client": "7.8.0",
     "@repo/typescript-config": "workspace:*",
-    "@types/node": "25.8.0",
+    "@types/node": "25.9.1",
     "@types/pg": "^8.20.0",
     "@types/semver": "^7.7.1",
     "better-sqlite3": "^12.10.0",
@@ -45,14 +45,14 @@
     "drizzle-kit": "^0.31.10",
     "drizzle-orm": "^0.45.2",
     "mongodb": "^7.2.0",
-    "mysql2": "^3.22.3",
-    "pg": "^8.20.0",
+    "mysql2": "^3.22.4",
+    "pg": "^8.21.0",
     "prisma": "^7.8.0",
     "tarn": "^3.0.2",
     "tedious": "^19.2.1",
-    "tinyexec": "^1.1.2",
+    "tinyexec": "^1.2.2",
     "tsdown": "^0.22.0",
-    "typeorm": "^0.3.29",
+    "typeorm": "1.0.0",
     "typescript": "6.0.3"
   },
   "peerDependencies": {
@@ -60,7 +60,7 @@
     "drizzle-orm": "^0.44.0 || ^0.45.0",
     "mongodb": "6.x.x || 7.x.x",
     "prisma": "6.x.x || 7.x.x",
-    "typeorm": "0.x.x"
+    "typeorm": "^1"
   },
   "peerDependenciesMeta": {
     "convex": {
@@ -86,9 +86,9 @@
     "@clack/prompts": "^1.4.0",
     "@paralleldrive/cuid2": "^3.3.0",
     "commander": "^14.0.3",
-    "kysely": "^0.29.1",
+    "kysely": "^0.29.2",
     "kysely-typeorm": "^0.3.0",
-    "semver": "^7.8.0",
+    "semver": "^7.8.1",
     "zod": "^4.4.3"
   }
 }

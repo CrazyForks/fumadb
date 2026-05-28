@@ -54,18 +54,18 @@ export function generateMigrationFromSchema(
   ): MigrationOperation[] {
     if (actions.length === 0) return [];
 
-    if (
-      provider === "mysql" ||
-      provider === "postgresql" ||
-      provider === "mongodb"
-    ) {
-      return [
-        {
-          type: "update-table",
-          name: tableName,
-          value: actions,
-        },
-      ];
+    switch (provider) {
+      case 'mysql':
+      case 'postgresql':
+      case 'cockroachdb':
+      case 'mongodb':
+        return [
+          {
+            type: "update-table",
+            name: tableName,
+            value: actions,
+          },
+        ];
     }
 
     return actions.map((action) => ({
@@ -308,21 +308,14 @@ export function generateMigrationFromSchema(
     return operations;
   }
 
+  const ORDER_MAP = {
+    pre: -1,
+    default: 0,
+    post: 1,
+  }
+
   function reorder(operations: Operation[]) {
-    const out: MigrationOperation[] = [];
-    for (const item of operations) {
-      if (item.enforce === "pre") out.push(item);
-    }
-
-    for (const item of operations) {
-      if (!item.enforce) out.push(item);
-    }
-
-    for (const item of operations) {
-      if (item.enforce === "post") out.push(item);
-    }
-
-    return out;
+    return operations.sort((a, b) => ORDER_MAP[a.enforce ?? 'default'] - ORDER_MAP[b.enforce ?? 'default'])
   }
 
   function generate() {
@@ -331,10 +324,27 @@ export function generateMigrationFromSchema(
     for (const table of Object.values(schema.tables)) {
       const oldTable = old.tables[table.ormName];
       if (!oldTable) {
-        operations.push({
-          type: "create-table",
-          value: table,
-        });
+        if (provider === 'cockroachdb') {
+          operations.push({
+            type: "create-table",
+            value: table,
+            skipForeignKeys: true
+          });  
+
+          for (const foreignKey of table.foreignKeys) {
+            operations.push({
+              type: 'add-foreign-key',
+              enforce: 'post',
+              table: table.names.sql,
+              value: compileForeignKey(foreignKey, 'sql')
+            })
+          }
+        } else {
+          operations.push({
+            type: "create-table",
+            value: table,
+          });
+        }
         continue;
       }
 

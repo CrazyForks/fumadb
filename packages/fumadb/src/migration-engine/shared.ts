@@ -44,6 +44,8 @@ export type TableOperation =
   | {
       type: "create-table";
       value: AnyTable;
+      skipForeignKeys?: boolean
+      skipUniqueIndexes?: boolean
     }
   | {
       type: "drop-table";

@@ -10,10 +10,9 @@ import type {
   ColumnOperation,
   CustomOperation,
   MigrationOperation,
+  TableOperation,
 } from "../../../migration-engine/shared";
 import {
-  type AnyColumn,
-  type AnyTable,
   IdColumn,
   type TypeMap,
 } from "../../../schema/create";
@@ -138,11 +137,12 @@ export async function execute(
   const { client, session } = config;
   const db = client.db();
 
-  async function createCollection(table: AnyTable) {
+  async function createCollection(op: Extract<TableOperation, {type: 'create-table'}>) {
+    const {value: table,skipUniqueIndexes = false } = op
     const collection = await db.createCollection(table.names.mongodb);
 
     // init unique index, columns are created on insert
-    for (const col of Object.values(table.columns)) {
+    for (const col of skipUniqueIndexes? [] : Object.values(table.columns)) {
       if (!col.isUnique) continue;
 
       await createUniqueIndex(collection, col.getUniqueConstraintName(), [
@@ -153,7 +153,7 @@ export async function execute(
 
   switch (operation.type) {
     case "create-table":
-      await createCollection(operation.value);
+      await createCollection(operation);
       return true;
 
     case "rename-table":

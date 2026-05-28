@@ -12,6 +12,7 @@ import {
   type CustomOperation,
   isUpdated,
   type MigrationOperation,
+  TableOperation,
 } from "../../../migration-engine/shared";
 import {
   type AnyColumn,
@@ -235,10 +236,11 @@ export function execute(
   } = config;
 
   function createTable(
-    table: AnyTable,
-    tableName = table.names.sql,
-    sqliteDeferChecks = false
+    op: Extract<TableOperation, {type: 'create-table'}>
   ) {
+    const table = op.value
+    const tableName = table.names.sql
+
     const results: ExecuteNode[] = [];
     let builder = db.schema.createTable(tableName) as CreateTableBuilder<
       string,
@@ -253,7 +255,7 @@ export function execute(
       );
     }
 
-    for (const foreignKey of table.foreignKeys) {
+    for (const foreignKey of op.skipForeignKeys? [] : table.foreignKeys) {
       if (relationMode === "fumadb") break;
       const compiled = compileForeignKey(foreignKey, "sql");
 
@@ -263,18 +265,14 @@ export function execute(
         compiled.referencedTable,
         compiled.referencedColumns,
         (b) => {
-          const builder = b
+          return b
             .onUpdate(mapForeignKeyAction(compiled.onUpdate, provider))
             .onDelete(mapForeignKeyAction(compiled.onDelete, provider));
-
-          if (sqliteDeferChecks)
-            return builder.deferrable().initiallyDeferred();
-          return builder;
         }
       );
     }
 
-    for (const con of table.getUniqueConstraints()) {
+    for (const con of op.skipUniqueIndexes? [] :table.getUniqueConstraints()) {
       results.push(
         createUniqueIndexOrConstraint(
           db,
@@ -292,7 +290,7 @@ export function execute(
 
   switch (operation.type) {
     case "create-table":
-      return createTable(operation.value);
+      return createTable(operation);
     case "rename-table":
       if (provider === "mssql") {
         return rawToNode(

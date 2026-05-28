@@ -8,9 +8,8 @@ import { docs } from "./.source/server";
 import { lucideIconsPlugin } from "fumadocs-core/source/plugins/lucide-icons";
 import { createDocsLayoutPage } from "fumapress/layouts/docs";
 import { createHomeLayout } from "fumapress/layouts/home";
-import { IndexPage } from "@/home/page";
 
-export default defineConfig({
+const config = defineConfig({
   loader: loader(
     docs.toFumadocsSource({
       baseDir: "docs",
@@ -44,35 +43,7 @@ export default defineConfig({
     },
   },
 })
-  .usePlugins(flexsearchPlugin(), llmsPlugin(), takumiPlugin(), {
-    createPages({ createPage }) {
-      const HomeLayout = createHomeLayout<(typeof this)["$context"]>({
-        render: () => ({
-          layoutProps: {
-            links: [
-              {
-                text: "Documentation",
-                url: "/docs",
-                active: "nested-url",
-              },
-            ],
-          },
-        }),
-      });
-
-      createPage({
-        path: "/",
-        render: "static",
-        component: () => {
-          return (
-            <HomeLayout ctx={this}>
-              <IndexPage />
-            </HomeLayout>
-          );
-        },
-      });
-    },
-  })
+  .usePlugins(flexsearchPlugin(), llmsPlugin(), takumiPlugin())
   .useAdapters(fumadocsMdx())
   .useLayouts({
     page: createDocsLayoutPage({
@@ -85,3 +56,19 @@ export default defineConfig({
       },
     }),
   });
+
+export const HomeLayout = createHomeLayout<Ctx>({
+  layoutProps: {
+    links: [
+      {
+        text: "Documentation",
+        url: "/docs",
+        active: "nested-url",
+      },
+    ],
+  },
+});
+
+export type Ctx = (typeof config)["$context"];
+
+export default config;

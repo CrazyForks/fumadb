@@ -7,7 +7,7 @@ import { Database, Plug, Zap, Lock, Shuffle, Globe, Rocket, Star } from "lucide-
 import { ServerCodeBlock } from "fumadocs-ui/components/codeblock.rsc";
 import BannerImage from "./image.png";
 
-export function IndexPage() {
+export default function Page() {
   return (
     <>
       <title>FumaDB</title>
@@ -15,12 +15,10 @@ export function IndexPage() {
         property="description"
         content="One API to read & write database, for your next library."
       />
-      <main className="relative px-4 min-h-screen">
-        <Hero />
-        <Features />
-        <CodeSamples />
-        <CTA />
-      </main>
+      <Hero />
+      <Features />
+      <CodeSamples />
+      <CTA />
     </>
   );
 }

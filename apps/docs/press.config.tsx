@@ -10,6 +10,7 @@ import { createHomeLayout } from "fumapress/layouts/home";
 import { imagePlugin } from "fumapress/plugins/image/vercel";
 import { sitemapPlugin } from "fumapress/plugins/sitemap";
 import { linkValidationPlugin } from "fumapress/plugins/link-validation";
+import { DatabaseIcon } from "lucide-react";
 
 const config = defineConfig({
   content: docs.toFumadocsSource({
@@ -51,7 +52,17 @@ const config = defineConfig({
     sitemapPlugin(),
   )
   .adapters(fumadocsMdx())
-  .useLayouts({
+  .layouts({
+    defaultProps: () => ({
+      nav: {
+        title: (
+          <>
+            <DatabaseIcon className="size-5 text-fd-primary" />
+            FumaDB
+          </>
+        ),
+      },
+    }),
     page: createDocsLayoutPage({
       render() {
         return {
